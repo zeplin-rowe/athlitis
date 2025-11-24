@@ -1,0 +1,69 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  username       String?   @unique
+  email          String    @unique
+  passwordHash   String?
+  createdAt      DateTime  @default(now())
+  routines       Routine[]
+  logs           UserExerciseLog[]
+}
+
+model Exercise {
+  id         Int      @id @default(autoincrement())
+  apiId      String   @unique
+  name       String
+  bodyPart   String?
+  equipment  String?
+  targetMuscle String?
+  gifUrl     String?
+  createdAt  DateTime @default(now())
+  routineExercises RoutineExercise[]
+  userLogs   UserExerciseLog[]
+}
+
+model Routine {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  name        String   @db.VarChar(100)
+  description String?
+  createdAt   DateTime @default(now())
+  exercises   RoutineExercise[]
+}
+
+model RoutineExercise {
+  id         Int @id @default(autoincrement())
+  routine    Routine @relation(fields: [routineId], references: [id])
+  routineId  Int
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+  exerciseId Int
+  orderIndex Int
+  sets       Int?
+  reps       Int?
+}
+
+model UserExerciseLog {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  exercise    Exercise @relation(fields: [exerciseId], references: [id])
+  exerciseId  Int
+  performedAt DateTime @default(now())
+  sets        Int?
+  reps        Int?
+  weight      Float?
+}
