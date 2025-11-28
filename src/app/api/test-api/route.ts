@@ -1,23 +1,14 @@
-// src/app/api/test-api/route.ts
-import axios from "axios";
+import { NextResponse } from "next/server";
+import { fetchAllExercises } from "@/lib/exerciseApi";
 
 export async function GET() {
   try {
-    const res = await axios.get(
-      "https://exercisedb-api1.p.rapidapi.com/api/v1/exercises",
-      {
-        headers: {
-          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY!,
-          "X-RapidAPI-Host": "exercisedb-api1.p.rapidapi.com",
-        },
-      }
-    );
+    const exercises = await fetchAllExercises(); // <-- this is already an array
+    const firstFive = exercises.slice(0, 5);
 
-    console.log(res.data);
-    return new Response(JSON.stringify(res.data.slice(0, 5))); // just first 5 for testing
-  } catch (err) {
-    return new Response(JSON.stringify({ error: (err as any).message }), {
-      status: 500,
-    });
+    return NextResponse.json(firstFive);
+  } catch (err: any) {
+    console.error("ERROR in test API:", err.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
