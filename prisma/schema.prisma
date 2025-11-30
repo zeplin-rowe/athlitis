@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -13,42 +7,74 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum Difficulty {
+  beginner
+  intermediate
+  advanced
+}
+
+enum Category {
+  strength
+  cardio
+  mobility
+  balance
+  stretching
+  plyometrics
+  rehabilitation
+  other
+}
+
 model User {
-  id             Int       @id @default(autoincrement())
-  username       String?   @unique
-  email          String    @unique
-  passwordHash   String?
-  createdAt      DateTime  @default(now())
-  routines       Routine[]
-  logs           UserExerciseLog[]
+  id           Int               @id @default(autoincrement())
+  username     String?           @unique
+  email        String            @unique
+  passwordHash String?
+  createdAt    DateTime          @default(now())
+  routines     Routine[]
+  logs         UserExerciseLog[]
 }
 
 model Exercise {
-  id         Int      @id @default(autoincrement())
-  apiId      String   @unique
-  name       String
-  bodyPart   String?
-  equipment  String?
-  targetMuscle String?
-  gifUrl     String?
-  createdAt  DateTime @default(now())
+  id               Int         @id @default(autoincrement())
+  apiId            String      @unique
+  name             String
+  bodyPart         String?     @db.VarChar(100)
+  equipment        String?
+  targetMuscle     String?     @db.VarChar(100)
+  gifUrl           String?
+  thumbnailUrl     String?
+  description      String?
+  instructions     String[]    @default([])
+  secondaryMuscles String[]    @default([])
+  difficulty       Difficulty?
+  category         Category?
+  images           String[]    @default([]) 
+  createdAt        DateTime    @default(now())
+
   routineExercises RoutineExercise[]
-  userLogs   UserExerciseLog[]
+  userLogs         UserExerciseLog[]
+
+  @@index([bodyPart])
+  @@index([targetMuscle])
 }
 
 model Routine {
-  id          Int      @id @default(autoincrement())
-  user        User     @relation(fields: [userId], references: [id])
-  userId      Int
-  name        String   @db.VarChar(100)
-  description String?
-  createdAt   DateTime @default(now())
-  exercises   RoutineExercise[]
+  id           Int         @id @default(autoincrement())
+  user         User        @relation(fields: [userId], references: [id])
+  userId       Int
+  name         String      @db.VarChar(100)
+  description  String?
+  difficulty   Difficulty?
+  category     Category?
+  thumbnailUrl String?
+  createdAt    DateTime    @default(now())
+
+  exercises RoutineExercise[]
 }
 
 model RoutineExercise {
-  id         Int @id @default(autoincrement())
-  routine    Routine @relation(fields: [routineId], references: [id])
+  id         Int      @id @default(autoincrement())
+  routine    Routine  @relation(fields: [routineId], references: [id])
   routineId  Int
   exercise   Exercise @relation(fields: [exerciseId], references: [id])
   exerciseId Int

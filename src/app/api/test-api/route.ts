@@ -3,7 +3,7 @@ import { fetchAllExercises } from "@/lib/exerciseApi";
 
 export async function GET() {
   try {
-    const exercises = await fetchAllExercises(); // <-- this is already an array
+    const exercises = await fetchAllExercises();
     const firstFive = exercises.slice(0, 5);
 
     return NextResponse.json(firstFive);
