@@ -10,8 +10,24 @@
     "resolveJsonModule": true,
     "outDir": "dist",
     "noImplicitAny": false,
-    "allowJs": true
+    "allowJs": true,
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "noEmit": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx"
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "prisma/seed.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "prisma/seed.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
