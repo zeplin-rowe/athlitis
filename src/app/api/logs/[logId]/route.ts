@@ -1,6 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { logId: string } }
+) {
+  try {
+    const id = Number(params.logId);
+
+    if (isNaN(id)) {
+      return NextResponse.json(
+        { error: "logId must be a number" },
+        { status: 400 }
+      );
+    }
+
+    const log = await prisma.exerciseLog.findUnique({
+      where: { id },
+      include: { exercise: true, user: true, routine: true },
+    });
+
+    if (!log) {
+      return NextResponse.json({ error: "Log not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(log);
+  } catch (error) {
+    console.error("GET /api/logs/[logId] error:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
 // UPDATE a log
 export async function PATCH(
   req: NextRequest,
