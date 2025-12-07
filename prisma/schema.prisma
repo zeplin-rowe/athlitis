@@ -60,7 +60,7 @@ model Exercise {
 
 model Routine {
   id           Int         @id @default(autoincrement())
-  user         User        @relation(fields: [userId], references: [id])
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId       Int
   name         String      @db.VarChar(100)
   description  String?
@@ -74,7 +74,7 @@ model Routine {
 
 model RoutineExercise {
   id         Int      @id @default(autoincrement())
-  routine    Routine  @relation(fields: [routineId], references: [id])
+  routine    Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
   routineId  Int
   exercise   Exercise @relation(fields: [exerciseId], references: [id])
   exerciseId Int
@@ -85,7 +85,7 @@ model RoutineExercise {
 
 model UserExerciseLog {
   id          Int      @id @default(autoincrement())
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      Int
   exercise    Exercise @relation(fields: [exerciseId], references: [id])
   exerciseId  Int

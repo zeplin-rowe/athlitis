@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const logs = await prisma.exerciseLog.findMany({
+    const logs = await prisma.userExerciseLog.findMany({
       where: { userId: Number(userId) },
       orderBy: { createdAt: "desc" },
       include: { exercise: true },
@@ -30,12 +30,15 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+// CREATE a log
+export async function PUT(req: NextRequest) {
   try {
-    const data = await req.json();
-    const { userId, exerciseId, routineId, sets, reps, weight } = data;
+    const body = await req.json();
 
-    // --- Validation ---
+    console.log("RAW BODY RECEIVED:", body);
+
+    const { userId, exerciseId, sets, reps, weight } = body;
+
     if (!userId || isNaN(Number(userId))) {
       return NextResponse.json(
         { error: "userId is required and must be a number" },
@@ -64,7 +67,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Optional: verify exercise exists
     const exerciseExists = await prisma.exercise.findUnique({
       where: { id: Number(exerciseId) },
     });
@@ -75,7 +77,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Optional: verify user exists
     const userExists = await prisma.user.findUnique({
       where: { id: Number(userId) },
     });
@@ -83,12 +84,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Create log
-    const log = await prisma.exerciseLog.create({
+    const log = await prisma.userExerciseLog.create({
       data: {
         userId: Number(userId),
         exerciseId: Number(exerciseId),
-        routineId: routineId ? Number(routineId) : null,
         sets: sets ?? null,
         reps: reps ?? null,
         weight: weight ?? 0,
