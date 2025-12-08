@@ -1,15 +1,16 @@
 import "./globals.css";
-import { ReactNode } from "react";
+import Navbar from "@/components/Navbar";
+import { UserProvider } from "@/context/UserContext";
 
-export const metadata = {
-  title: "Athlitis",
-  description: "Fitness app",
-};
-
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <UserProvider>
+          <Navbar />
+          {children}
+        </UserProvider>
+      </body>
     </html>
   );
 }

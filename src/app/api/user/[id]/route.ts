@@ -98,21 +98,31 @@ async function deleteUser(req: NextRequest, idStr: string) {
 //HANDLERS
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  return authMiddleware(req, (r: NextRequest) => getUser(r, params.id));
+  const { params } = context;
+  const resolvedParams = await params;
+  return authMiddleware(req, (r: NextRequest) => getUser(r, resolvedParams.id));
 }
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  return authMiddleware(req, (r: NextRequest) => updateUser(r, params.id));
+  const { params } = context;
+  const resolvedParams = await params;
+  return authMiddleware(req, (r: NextRequest) =>
+    updateUser(r, resolvedParams.id)
+  );
 }
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  return authMiddleware(req, (r: NextRequest) => deleteUser(r, params.id));
+  const { params } = context;
+  const resolvedParams = await params;
+  return authMiddleware(req, (r: NextRequest) =>
+    deleteUser(r, resolvedParams.id)
+  );
 }
