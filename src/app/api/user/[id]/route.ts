@@ -95,7 +95,7 @@ async function deleteUser(req: NextRequest, idStr: string) {
   return NextResponse.json({ message: "User deleted successfully" });
 }
 
-// Wrappers for App Router
+//HANDLERS
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }

@@ -2,18 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authMiddleware } from "@/middleware/auth";
 
-// Helper to unwrap IDs safely
-async function getIds(context: {
-  params: Promise<{ routineId: string; routineExerciseId: string }>;
-}) {
-  const { routineId, routineExerciseId } = await context.params;
+async function getIds(
+  paramsPromise: Promise<{ routineId: string; routineExerciseId: string }>
+) {
+  const { routineId, routineExerciseId } = await paramsPromise;
   const rid = Number(routineId);
   const reid = Number(routineExerciseId);
-  if (isNaN(rid) || isNaN(reid)) return { rid: null, reid: null };
-  return { rid, reid };
+  return {
+    rid: Number.isNaN(rid) ? null : rid,
+    reid: Number.isNaN(reid) ? null : reid,
+  };
 }
 
-// GET a routine exercise (protected, owner-only)
+// GET routineExercise
 async function getExercise(req: NextRequest, rid: number, reid: number) {
   const userId = (req as any).userId;
 
@@ -27,13 +28,14 @@ async function getExercise(req: NextRequest, rid: number, reid: number) {
       { error: "Routine exercise not found" },
       { status: 404 }
     );
+
   if (record.routine.userId !== userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   return NextResponse.json(record, { status: 200 });
 }
 
-// UPDATE a routine exercise (protected, owner-only)
+// UPDATE routineExercise
 async function updateExercise(req: NextRequest, rid: number, reid: number) {
   const userId = (req as any).userId;
 
@@ -41,16 +43,17 @@ async function updateExercise(req: NextRequest, rid: number, reid: number) {
     where: { id: reid },
     include: { routine: true },
   });
+
   if (!record)
     return NextResponse.json(
       { error: "Routine exercise not found" },
       { status: 404 }
     );
+
   if (record.routine.userId !== userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json();
-  const { sets, reps, orderIndex } = body;
+  const { sets, reps, orderIndex } = await req.json();
 
   const updated = await prisma.routineExercise.update({
     where: { id: reid },
@@ -64,7 +67,7 @@ async function updateExercise(req: NextRequest, rid: number, reid: number) {
   return NextResponse.json(updated, { status: 200 });
 }
 
-// DELETE a routine exercise (protected, owner-only)
+// DELETE routineExercise
 async function deleteExercise(req: NextRequest, rid: number, reid: number) {
   const userId = (req as any).userId;
 
@@ -72,11 +75,13 @@ async function deleteExercise(req: NextRequest, rid: number, reid: number) {
     where: { id: reid },
     include: { routine: true },
   });
+
   if (!record)
     return NextResponse.json(
       { error: "Routine exercise not found" },
       { status: 404 }
     );
+
   if (record.routine.userId !== userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -88,42 +93,54 @@ async function deleteExercise(req: NextRequest, rid: number, reid: number) {
   );
 }
 
-// App Router handlers
+// HANDLERS
 export async function GET(
   req: NextRequest,
-  context: { params: Promise<{ routineId: string; routineExerciseId: string }> }
+  context: {
+    params: Promise<{ routineId: string; routineExerciseId: string }>;
+  }
 ) {
-  const { rid, reid } = await getIds(context);
+  const { rid, reid } = await getIds(context.params);
+
   if (!rid || !reid)
     return NextResponse.json(
       { error: "Invalid routine or exercise ID" },
       { status: 400 }
     );
-  return authMiddleware(req, (r: NextRequest) => getExercise(r, rid, reid));
+
+  return authMiddleware(req, (r) => getExercise(r, rid, reid));
 }
 
 export async function PUT(
   req: NextRequest,
-  context: { params: Promise<{ routineId: string; routineExerciseId: string }> }
+  context: {
+    params: Promise<{ routineId: string; routineExerciseId: string }>;
+  }
 ) {
-  const { rid, reid } = await getIds(context);
+  const { rid, reid } = await getIds(context.params);
+
   if (!rid || !reid)
     return NextResponse.json(
       { error: "Invalid routine or exercise ID" },
       { status: 400 }
     );
-  return authMiddleware(req, (r: NextRequest) => updateExercise(r, rid, reid));
+
+  return authMiddleware(req, (r) => updateExercise(r, rid, reid));
 }
 
 export async function DELETE(
   req: NextRequest,
-  context: { params: Promise<{ routineId: string; routineExerciseId: string }> }
+  context: {
+    params: Promise<{ routineId: string; routineExerciseId: string }>;
+  }
 ) {
-  const { rid, reid } = await getIds(context);
+  const { rid, reid } = await getIds(context.params);
+
   if (!rid || !reid)
     return NextResponse.json(
       { error: "Invalid routine or exercise ID" },
       { status: 400 }
     );
-  return authMiddleware(req, (r: NextRequest) => deleteExercise(r, rid, reid));
+
+  return authMiddleware(req, (r) => deleteExercise(r, rid, reid));
 }

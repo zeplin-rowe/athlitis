@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Wrap GET with authMiddleware
+//HANDLER
 export async function GET(req: NextRequest) {
   return authMiddleware(req, getUsers);
 }

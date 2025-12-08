@@ -11,7 +11,7 @@ export async function authMiddleware(req: NextRequest, handler: Function) {
   try {
     const token = authHeader.split(" ")[1];
     const payload = verifyToken(token);
-    // Attach userId to request
+
     (req as any).userId = payload.userId;
     return handler(req);
   } catch (err) {

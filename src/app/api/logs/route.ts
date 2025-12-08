@@ -2,18 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authMiddleware } from "@/middleware/auth";
 
-// GET logs for the authenticated user
+// GET logs (protected)
 async function getLogs(req: NextRequest) {
   try {
     const userId = (req as any).userId;
+
     const logs = await prisma.userExerciseLog.findMany({
       where: { userId },
       orderBy: { performedAt: "desc" },
       include: { exercise: true },
     });
-    return NextResponse.json(logs);
+
+    return NextResponse.json(logs, { status: 200 });
   } catch (error) {
-    console.error("GET /api/logs error:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
@@ -21,11 +22,18 @@ async function getLogs(req: NextRequest) {
   }
 }
 
-// CREATE a new log
+// CREATE a new log (protected)
 async function createLog(req: NextRequest) {
   try {
     const userId = (req as any).userId;
-    const body = await req.json();
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (err) {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
     const { exerciseId, sets, reps, weight } = body;
 
     if (!exerciseId || isNaN(Number(exerciseId))) {
@@ -41,12 +49,14 @@ async function createLog(req: NextRequest) {
         { status: 400 }
       );
     }
+
     if (reps !== undefined && isNaN(Number(reps))) {
       return NextResponse.json(
         { error: "reps must be a number" },
         { status: 400 }
       );
     }
+
     if (weight !== undefined && isNaN(Number(weight))) {
       return NextResponse.json(
         { error: "weight must be a number" },
@@ -57,11 +67,13 @@ async function createLog(req: NextRequest) {
     const exerciseExists = await prisma.exercise.findUnique({
       where: { id: Number(exerciseId) },
     });
-    if (!exerciseExists)
+
+    if (!exerciseExists) {
       return NextResponse.json(
         { error: "Exercise not found" },
         { status: 404 }
       );
+    }
 
     const log = await prisma.userExerciseLog.create({
       data: {
@@ -75,16 +87,22 @@ async function createLog(req: NextRequest) {
 
     return NextResponse.json(log, { status: 201 });
   } catch (error) {
-    console.error("POST /api/logs error:", error);
-    return NextResponse.json({ error: "Invalid Request" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
 
-// Wrap handlers with authMiddleware
+// HANDLERS
 export async function GET(req: NextRequest) {
   return authMiddleware(req, getLogs);
 }
 
 export async function POST(req: NextRequest) {
+  return authMiddleware(req, createLog);
+}
+
+export async function PUT(req: NextRequest) {
   return authMiddleware(req, createLog);
 }
