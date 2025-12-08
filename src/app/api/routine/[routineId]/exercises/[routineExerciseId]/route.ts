@@ -1,113 +1,129 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { authMiddleware } from "@/middleware/auth";
 
-// Params unwrap helper
+// Helper to unwrap IDs safely
 async function getIds(context: {
   params: Promise<{ routineId: string; routineExerciseId: string }>;
 }) {
   const { routineId, routineExerciseId } = await context.params;
-
   const rid = Number(routineId);
   const reid = Number(routineExerciseId);
-
   if (isNaN(rid) || isNaN(reid)) return { rid: null, reid: null };
-
   return { rid, reid };
 }
 
-// GET an exercise
+// GET a routine exercise (protected, owner-only)
+async function getExercise(req: NextRequest, rid: number, reid: number) {
+  const userId = (req as any).userId;
+
+  const record = await prisma.routineExercise.findUnique({
+    where: { id: reid },
+    include: { exercise: true, routine: true },
+  });
+
+  if (!record)
+    return NextResponse.json(
+      { error: "Routine exercise not found" },
+      { status: 404 }
+    );
+  if (record.routine.userId !== userId)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  return NextResponse.json(record, { status: 200 });
+}
+
+// UPDATE a routine exercise (protected, owner-only)
+async function updateExercise(req: NextRequest, rid: number, reid: number) {
+  const userId = (req as any).userId;
+
+  const record = await prisma.routineExercise.findUnique({
+    where: { id: reid },
+    include: { routine: true },
+  });
+  if (!record)
+    return NextResponse.json(
+      { error: "Routine exercise not found" },
+      { status: 404 }
+    );
+  if (record.routine.userId !== userId)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json();
+  const { sets, reps, orderIndex } = body;
+
+  const updated = await prisma.routineExercise.update({
+    where: { id: reid },
+    data: {
+      sets: sets ?? undefined,
+      reps: reps ?? undefined,
+      orderIndex: orderIndex ?? undefined,
+    },
+  });
+
+  return NextResponse.json(updated, { status: 200 });
+}
+
+// DELETE a routine exercise (protected, owner-only)
+async function deleteExercise(req: NextRequest, rid: number, reid: number) {
+  const userId = (req as any).userId;
+
+  const record = await prisma.routineExercise.findUnique({
+    where: { id: reid },
+    include: { routine: true },
+  });
+  if (!record)
+    return NextResponse.json(
+      { error: "Routine exercise not found" },
+      { status: 404 }
+    );
+  if (record.routine.userId !== userId)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await prisma.routineExercise.delete({ where: { id: reid } });
+
+  return NextResponse.json(
+    { message: "Exercise removed from routine" },
+    { status: 200 }
+  );
+}
+
+// App Router handlers
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ routineId: string; routineExerciseId: string }> }
 ) {
-  try {
-    const { rid, reid } = await getIds(context);
-    if (!rid || !reid)
-      return NextResponse.json(
-        { error: "Invalid routine or exercise ID" },
-        { status: 400 }
-      );
-
-    const record = await prisma.routineExercise.findUnique({
-      where: { id: reid },
-      include: { exercise: true, routine: true },
-    });
-
-    if (!record)
-      return NextResponse.json(
-        { error: "Routine exercise not found" },
-        { status: 404 }
-      );
-
-    return NextResponse.json(record, { status: 200 });
-  } catch (err: any) {
-    console.error("GET routineExercise error:", err);
+  const { rid, reid } = await getIds(context);
+  if (!rid || !reid)
     return NextResponse.json(
-      { error: "Server error", details: err.message },
-      { status: 500 }
+      { error: "Invalid routine or exercise ID" },
+      { status: 400 }
     );
-  }
+  return authMiddleware(req, (r: NextRequest) => getExercise(r, rid, reid));
 }
 
-// UPDATE an exercise
 export async function PUT(
   req: NextRequest,
   context: { params: Promise<{ routineId: string; routineExerciseId: string }> }
 ) {
-  try {
-    const { rid, reid } = await getIds(context);
-    if (!rid || !reid)
-      return NextResponse.json(
-        { error: "Invalid routine or exercise ID" },
-        { status: 400 }
-      );
-
-    const body = await req.json();
-    const { sets, reps, orderIndex } = body;
-
-    const updated = await prisma.routineExercise.update({
-      where: { id: reid },
-      data: {
-        sets: sets ?? undefined,
-        reps: reps ?? undefined,
-        orderIndex: orderIndex ?? undefined,
-      },
-    });
-
-    return NextResponse.json(updated, { status: 200 });
-  } catch (err: any) {
-    console.error("PUT routineExercise error:", err);
+  const { rid, reid } = await getIds(context);
+  if (!rid || !reid)
     return NextResponse.json(
-      { error: "Server error", details: err.message },
-      { status: 500 }
+      { error: "Invalid routine or exercise ID" },
+      { status: 400 }
     );
-  }
+  return authMiddleware(req, (r: NextRequest) => updateExercise(r, rid, reid));
 }
 
-// DELETE an exercise from a routine
 export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ routineId: string; routineExerciseId: string }> }
 ) {
-  try {
-    const { rid, reid } = await getIds(context);
-    if (!rid || !reid)
-      return NextResponse.json(
-        { error: "Invalid routine or exercise ID" },
-        { status: 400 }
-      );
-
-    await prisma.routineExercise.delete({ where: { id: reid } });
-
+  const { rid, reid } = await getIds(context);
+  if (!rid || !reid)
     return NextResponse.json(
-      { message: "Exercise removed from routine" },
-      { status: 200 }
+      { error: "Invalid routine or exercise ID" },
+      { status: 400 }
     );
-  } catch (err: any) {
-    console.error("DELETE routineExercise error:", err);
-    return NextResponse.json(
-      { error: "Server error", details: err.message },
-      { status: 500 }
-    );
-  }
+  return authMiddleware(req, (r: NextRequest) => deleteExercise(r, rid, reid));
 }

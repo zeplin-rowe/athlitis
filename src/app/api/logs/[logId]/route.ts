@@ -1,103 +1,112 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { authMiddleware } from "@/middleware/auth";
 
-// GET a log
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ logId: string }> }
-) {
-  try {
-    const { logId } = await params;
-    const id = Number(logId);
+// GET a single log (authenticated user only)
+async function getLog(req: NextRequest, logId: string) {
+  const userId = (req as any).userId;
+  const id = Number(logId);
 
-    if (isNaN(id)) {
-      return NextResponse.json({ error: "Invalid log ID" }, { status: 400 });
-    }
+  if (isNaN(id))
+    return NextResponse.json({ error: "Invalid log ID" }, { status: 400 });
 
-    const log = await prisma.userExerciseLog.findUnique({
-      where: { id },
-    });
+  const log = await prisma.userExerciseLog.findUnique({ where: { id } });
 
-    if (!log) {
-      return NextResponse.json({ error: "Log not found" }, { status: 404 });
-    }
+  if (!log || log.userId !== userId)
+    return NextResponse.json({ error: "Log not found" }, { status: 404 });
 
-    return NextResponse.json(log, { status: 200 });
-  } catch (error) {
-    console.error("GET LOG ERROR:", error);
-    return NextResponse.json({ error: "Failed to fetch log" }, { status: 500 });
-  }
+  return NextResponse.json(log, { status: 200 });
 }
 
-// UPDATE a log
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ logId: string }> }
-) {
-  try {
-    const { logId } = await params;
-    const id = Number(logId);
+// UPDATE a log (authenticated user only)
+async function updateLog(req: NextRequest, logId: string) {
+  const userId = (req as any).userId;
+  const id = Number(logId);
 
-    if (isNaN(id)) {
-      return NextResponse.json({ error: "Invalid log ID" }, { status: 400 });
-    }
+  if (isNaN(id))
+    return NextResponse.json({ error: "Invalid log ID" }, { status: 400 });
 
-    const body = await request.json();
-    const { sets, reps, weight } = body;
+  const log = await prisma.userExerciseLog.findUnique({ where: { id } });
+  if (!log || log.userId !== userId)
+    return NextResponse.json({ error: "Log not found" }, { status: 404 });
 
-    const updated = await prisma.userExerciseLog.update({
-      where: { id },
-      data: { sets, reps, weight },
-    });
+  const body = await req.json();
+  const { sets, reps, weight } = body;
 
-    return NextResponse.json(updated, { status: 200 });
-  } catch (error: any) {
-    console.error("PUT LOG ERROR:", error);
-
-    if (error.code === "P2025") {
-      return NextResponse.json({ error: "Log not found" }, { status: 404 });
-    }
-
+  if (sets !== undefined && isNaN(Number(sets)))
     return NextResponse.json(
-      { error: "Failed to update log" },
-      { status: 500 }
+      { error: "sets must be a number" },
+      { status: 400 }
     );
-  }
+  if (reps !== undefined && isNaN(Number(reps)))
+    return NextResponse.json(
+      { error: "reps must be a number" },
+      { status: 400 }
+    );
+  if (weight !== undefined && isNaN(Number(weight)))
+    return NextResponse.json(
+      { error: "weight must be a number" },
+      { status: 400 }
+    );
+
+  const updated = await prisma.userExerciseLog.update({
+    where: { id },
+    data: { sets, reps, weight },
+  });
+
+  return NextResponse.json(updated, { status: 200 });
 }
 
-// DELETE log by ID
+// DELETE a log (authenticated user only)
+async function deleteLog(req: NextRequest, logId: string) {
+  const userId = (req as any).userId;
+  const id = Number(logId);
+
+  if (isNaN(id))
+    return NextResponse.json({ error: "Invalid log ID" }, { status: 400 });
+
+  const log = await prisma.userExerciseLog.findUnique({ where: { id } });
+  if (!log || log.userId !== userId)
+    return NextResponse.json({ error: "Log not found" }, { status: 404 });
+
+  await prisma.userExerciseLog.delete({ where: { id } });
+
+  return NextResponse.json(
+    { message: "Log deleted successfully" },
+    { status: 200 }
+  );
+}
+
+// Export handlers wrapped in authMiddleware
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ logId: string }> }
+) {
+  const { params } = context;
+  const unwrappedParams = await params;
+  return authMiddleware(req, (r: NextRequest) =>
+    getLog(r, unwrappedParams.logId)
+  );
+}
+
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ logId: string }> }
+) {
+  const { params } = context;
+  const unwrappedParams = await params;
+  return authMiddleware(req, (r: NextRequest) =>
+    updateLog(r, unwrappedParams.logId)
+  );
+}
+
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ logId: string }> }
+  context: { params: Promise<{ logId: string }> }
 ) {
-  try {
-    const resolved = await params;
-    const id = Number(resolved.logId);
-
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { error: "logId must be a number" },
-        { status: 400 }
-      );
-    }
-
-    const existing = await prisma.userExerciseLog.findUnique({ where: { id } });
-
-    if (!existing) {
-      return NextResponse.json({ error: "Log not found" }, { status: 404 });
-    }
-
-    await prisma.userExerciseLog.delete({ where: { id } });
-
-    return NextResponse.json(
-      { message: "Log deleted successfully" },
-      { status: 200 }
-    );
-  } catch (error: any) {
-    console.error("DELETE LOG ERROR:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error", details: error.message },
-      { status: 500 }
-    );
-  }
+  const { params } = context;
+  const unwrappedParams = await params; // unwrap the promise
+  return authMiddleware(req, (r: NextRequest) =>
+    deleteLog(r, unwrappedParams.logId)
+  );
 }

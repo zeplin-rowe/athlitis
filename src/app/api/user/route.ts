@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hashPassword } from "@/utils/auth";
+import { authMiddleware } from "@/middleware/auth";
 
-// GET all users
-export async function GET() {
+// GET all users (protected)
+async function getUsers(req: NextRequest) {
   try {
     const users = await prisma.user.findMany({
       orderBy: { id: "asc" },
@@ -24,22 +26,32 @@ export async function GET() {
   }
 }
 
-// CREATE user
+// CREATE user (signup, public)
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { username, email, password } = body;
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Email and password are required" },
+        { status: 400 }
+      );
     }
 
-    // TODO: no hashing, add auth later
+    const hashedPassword = await hashPassword(password);
+
     const user = await prisma.user.create({
       data: {
         username,
         email,
-        passwordHash: password || null,
+        passwordHash: hashedPassword,
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        createdAt: true,
       },
     });
 
@@ -59,4 +71,9 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Wrap GET with authMiddleware
+export async function GET(req: NextRequest) {
+  return authMiddleware(req, getUsers);
 }
