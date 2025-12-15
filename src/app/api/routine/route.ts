@@ -3,13 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { authMiddleware } from "@/middleware/auth";
 import { enumNormalize } from "@/middleware/enumNormalize";
 
-// GET all routines
-export async function GET() {
+// GET routines for logged-in user only (protected)
+async function getUserRoutines(req: NextRequest) {
   try {
+    const userId = (req as any).userId;
+
     const routines = await prisma.routine.findMany({
+      where: { userId },
       include: { exercises: true },
       orderBy: { id: "asc" },
     });
+
     return NextResponse.json(routines);
   } catch (error) {
     console.error("GET /api/routine error:", error);
@@ -52,7 +56,11 @@ async function createRoutine(req: NextRequest) {
   return NextResponse.json(routine, { status: 201 });
 }
 
-//HANDLER
+// HANDLERS
+export async function GET(req: NextRequest) {
+  return authMiddleware(req, getUserRoutines);
+}
+
 export async function POST(req: NextRequest) {
   return authMiddleware(req, createRoutine);
 }
