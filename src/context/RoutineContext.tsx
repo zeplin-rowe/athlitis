@@ -1,5 +1,7 @@
 "use client";
 
+import { useUser } from "@/context/UserContext";
+
 import {
   createContext,
   useContext,
@@ -28,6 +30,7 @@ interface RoutineContextType {
 const RoutineContext = createContext<RoutineContextType | undefined>(undefined);
 
 export function RoutineProvider({ children }: { children: ReactNode }) {
+  const { isLoggedIn } = useUser();
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,8 +41,8 @@ export function RoutineProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem("token");
 
       if (!token) {
-        console.error("No auth token found");
         setRoutines([]);
+        setLoading(false);
         return;
       }
 
@@ -77,6 +80,8 @@ export function RoutineProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(data),
       });
 
+      if (!token) return;
+
       if (!res.ok) throw new Error("Failed to create routine");
 
       const newRoutine = await res.json();
@@ -97,6 +102,8 @@ export function RoutineProvider({ children }: { children: ReactNode }) {
         },
       });
 
+      if (!token) return;
+
       if (!res.ok) throw new Error("Failed to delete routine");
 
       setRoutines((prev) => prev.filter((r) => r.id !== id));
@@ -106,8 +113,14 @@ export function RoutineProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (!isLoggedIn) {
+      setRoutines([]);
+      setLoading(false);
+      return;
+    }
+
     fetchRoutines();
-  }, []);
+  }, [isLoggedIn]);
 
   return (
     <RoutineContext.Provider

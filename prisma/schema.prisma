@@ -81,6 +81,7 @@ model RoutineExercise {
   orderIndex Int
   sets       Int?
   reps       Int?
+  weight     Int? 
 }
 
 model UserExerciseLog {

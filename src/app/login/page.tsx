@@ -6,22 +6,14 @@ import { useUser } from "@/context/UserContext";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setLoggedIn } = useUser();
+  const { login } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    if (!email || !password) {
-      setError("Please enter email and password.");
-      return;
-    }
-
-    setLoading(true);
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -30,32 +22,19 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        const token = data?.token;
-        const userId = data?.user?.id;
+      const data = await res.json();
 
-        if (token && userId) {
-          localStorage.setItem("token", token);
-          localStorage.setItem("userId", userId.toString());
-
-          setLoggedIn(true);
-          router.push("/user");
-          return;
-        } else {
-          setError("Login succeeded but no token or userId returned by API.");
-        }
-      } else {
-        const data = await res.json();
+      if (!res.ok) {
         setError(data.error || "Login failed");
+        return;
       }
+
+      login(data.token, data.user.id);
     } catch (err) {
-      console.error("Login request error:", err);
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
+      console.error(err);
+      setError("Server error");
     }
-  }
+  };
 
   return (
     <div>

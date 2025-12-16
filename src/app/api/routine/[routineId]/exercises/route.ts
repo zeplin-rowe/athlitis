@@ -39,7 +39,7 @@ async function addExercise(req: NextRequest, routineId: number) {
   if (routine.userId !== userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { exerciseId, orderIndex, sets, reps } = await req.json();
+  const { exerciseId, sets, reps, weight } = await req.json();
 
   if (!exerciseId)
     return NextResponse.json(
@@ -47,20 +47,37 @@ async function addExercise(req: NextRequest, routineId: number) {
       { status: 400 }
     );
 
+  const exercise = await prisma.exercise.findUnique({
+    where: { id: exerciseId },
+  });
+  if (!exercise)
+    return NextResponse.json({ error: "Exercise not found" }, { status: 404 });
+
+  const lastExercise = await prisma.routineExercise.findFirst({
+    where: { routineId },
+    orderBy: { orderIndex: "desc" },
+  });
+
+  const nextOrderIndex = lastExercise ? lastExercise.orderIndex + 1 : 0;
+
   const added = await prisma.routineExercise.create({
     data: {
       routineId,
       exerciseId,
-      orderIndex: orderIndex ?? 0,
+      orderIndex: nextOrderIndex,
       sets: sets ?? null,
       reps: reps ?? null,
+      weight: weight ?? null,
+    },
+    include: {
+      exercise: true,
     },
   });
 
   return NextResponse.json(added, { status: 201 });
 }
 
-// HANDLERS
+// ROUTE HANDLERS
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ routineId: string }> }

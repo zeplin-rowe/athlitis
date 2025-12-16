@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@/context/UserContext";
 
 interface User {
   id: number;
@@ -16,6 +17,7 @@ export default function UserPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { userId, logout, isLoggedIn } = useUser();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -28,13 +30,13 @@ export default function UserPage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!isLoggedIn || !userId) {
+      router.push("/login");
+      return;
+    }
+
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
-      const userId = localStorage.getItem("userId");
-      if (!token || !userId) {
-        router.push("/login");
-        return;
-      }
 
       try {
         const res = await fetch(`/api/user/${userId}`, {
@@ -43,13 +45,10 @@ export default function UserPage() {
 
         if (!res.ok) {
           if (res.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("userId");
-            router.push("/login");
+            logout();
           }
           const data = await res.json();
           setError(data.error || "Failed to fetch user");
-          setLoading(false);
           return;
         }
 
@@ -66,13 +65,7 @@ export default function UserPage() {
     };
 
     fetchUser();
-  }, [router]);
-
-  const handleSignOut = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userId");
-    router.push("/login");
-  };
+  }, [isLoggedIn, userId, router, logout]);
 
   const handleUpdate = async () => {
     if (!user) return;
@@ -151,10 +144,7 @@ export default function UserPage() {
         return;
       }
 
-      localStorage.removeItem("token");
-      localStorage.removeItem("userId");
       alert("Account deleted successfully");
-      router.push("/login");
     } catch (err) {
       console.error(err);
       setError("Server error");
@@ -249,7 +239,7 @@ export default function UserPage() {
           )}
 
           <hr />
-          <button onClick={handleSignOut}>Sign Out</button>
+          <button onClick={logout}>Sign Out</button>
         </>
       )}
     </div>
