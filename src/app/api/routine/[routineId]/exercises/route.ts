@@ -39,7 +39,11 @@ async function addExercise(req: NextRequest, routineId: number) {
   if (routine.userId !== userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { exerciseId, sets, reps, weight } = await req.json();
+  const body = await req.json();
+
+  console.log("POST /routine/:id/exercises body:", body);
+
+  const { exerciseId, sets, reps, weight } = body;
 
   if (!exerciseId)
     return NextResponse.json(

@@ -3,17 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ExerciseSearch from "@/components/ExerciseSearch";
-
-interface Exercise {
-  id: string;
-  name: string;
-  bodyPart?: string;
-  equipment?: string;
-  targetMuscle?: string;
-  gifUrl?: string;
-  thumbnailUrl?: string;
-  description?: string;
-}
+import RoutineExerciseCard from "@/components/RoutineExerciseCard";
+import ExerciseEditModal from "@/components/ExerciseEditModal";
 
 type RoutineExercise = {
   id: number;
@@ -33,16 +24,9 @@ export default function RoutineDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modal state
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(
-    null
-  );
-  const [modalSets, setModalSets] = useState("");
-  const [modalReps, setModalReps] = useState("");
-  const [modalWeight, setModalWeight] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingExercise, setEditingExercise] =
+    useState<RoutineExercise | null>(null);
 
-  // Fetch routine exercises
   useEffect(() => {
     if (!routineId) return;
 
@@ -66,167 +50,93 @@ export default function RoutineDetailPage() {
     fetchExercises();
   }, [routineId]);
 
-  if (loading) return <p>Loading exercises...</p>;
-  if (error) return <p>{error}</p>;
-
-  // Add exercise to routine
-  const handleAddExercise = async () => {
-    if (!selectedExercise) return;
+  const handleDeleteExercise = async (id: number) => {
+    if (!confirm("Remove this exercise from the routine?")) return;
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`/api/routine/${routineId}/exercises`, {
-        method: "POST",
+
+      const res = await fetch(`/api/routine/${routineId}/exercises/${id}`, {
+        method: "DELETE",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          exerciseId: Number(selectedExercise.id),
-          sets: modalSets ? Number(modalSets) : null,
-          reps: modalReps ? Number(modalReps) : null,
-          weight: modalWeight ? Number(modalWeight) : null,
-        }),
       });
 
       if (!res.ok) throw new Error();
-      const newExercise = await res.json();
 
-      setExercises((prev) => [...prev, newExercise]);
-      setIsModalOpen(false);
-      setSelectedExercise(null);
-      setModalSets("");
-      setModalReps("");
-      setModalWeight("");
+      setExercises((prev) => prev.filter((ex) => ex.id !== id));
+      setEditingExercise(null);
     } catch {
-      alert("Failed to add exercise");
+      alert("Failed to delete exercise");
     }
   };
+
+  if (loading) return <p>Loading exercises...</p>;
+  if (error) return <p>{error}</p>;
 
   return (
     <div style={{ padding: "1rem" }}>
       <h1>Routine Exercises</h1>
 
-      {/* === Exercise Search === */}
-      <ExerciseSearch
-        onSelect={(exercise) => {
-          setSelectedExercise(exercise);
-          setModalSets("");
-          setModalReps("");
-          setModalWeight("");
-          setIsModalOpen(true);
+      {/* Search (adding flow will be finalized later) */}
+      <ExerciseSearch />
+
+      {exercises.length === 0 && <p>No exercises in this routine yet.</p>}
+
+      {exercises.map((item) => (
+        <RoutineExerciseCard
+          key={item.id}
+          exercise={item}
+          onEdit={() => setEditingExercise(item)}
+          onDelete={() => handleDeleteExercise(item.id)}
+        />
+      ))}
+
+      {/* Edit Modal */}
+      <ExerciseEditModal
+        isOpen={!!editingExercise}
+        onClose={() => setEditingExercise(null)}
+        exerciseName={editingExercise?.exercise.name ?? ""}
+        initialSets={editingExercise?.sets ?? null}
+        initialReps={editingExercise?.reps ?? null}
+        initialWeight={editingExercise?.weight ?? null}
+        onSave={async (values) => {
+          if (!editingExercise) return;
+
+          try {
+            const token = localStorage.getItem("token");
+
+            const res = await fetch(
+              `/api/routine/${routineId}/exercises/${editingExercise.id}`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(values),
+              }
+            );
+
+            if (!res.ok) throw new Error();
+
+            const updated = await res.json();
+
+            setExercises((prev) =>
+              prev.map((ex) => (ex.id === updated.id ? updated : ex))
+            );
+
+            setEditingExercise(null);
+          } catch {
+            alert("Failed to update exercise");
+          }
+        }}
+        onDelete={() => {
+          if (!editingExercise) return;
+          handleDeleteExercise(editingExercise.id);
         }}
       />
-
-      {/* === Exercises List === */}
-      {exercises.length === 0 && <p>No exercises yet.</p>}
-      <ul>
-        {exercises.map((item) => (
-          <li key={item.id} style={{ marginBottom: "0.5rem" }}>
-            {item.exercise?.name ?? "Exercise"} —
-            {item.sets !== null && ` Sets: ${item.sets}`}
-            {item.reps !== null && ` Reps: ${item.reps}`}
-            {item.weight !== null && ` Weight: ${item.weight}`}
-          </li>
-        ))}
-      </ul>
-
-      {/* === Modal === */}
-      {isModalOpen && selectedExercise && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              background: "#fff",
-              padding: "1rem",
-              borderRadius: "8px",
-              width: "90%",
-              maxWidth: "400px",
-              maxHeight: "90vh",
-              overflowY: "auto",
-            }}
-          >
-            <h2>{selectedExercise.name}</h2>
-            {selectedExercise.gifUrl && (
-              <img
-                src={selectedExercise.gifUrl}
-                alt={selectedExercise.name}
-                width={200}
-                style={{ display: "block", marginBottom: "0.5rem" }}
-              />
-            )}
-            {selectedExercise.description && (
-              <p style={{ marginBottom: "0.5rem" }}>
-                {selectedExercise.description}
-              </p>
-            )}
-
-            <input
-              placeholder="Sets"
-              type="number"
-              value={modalSets}
-              onChange={(e) => setModalSets(e.target.value)}
-              style={{ width: "100%", marginBottom: "0.5rem" }}
-            />
-            <input
-              placeholder="Reps"
-              type="number"
-              value={modalReps}
-              onChange={(e) => setModalReps(e.target.value)}
-              style={{ width: "100%", marginBottom: "0.5rem" }}
-            />
-            <input
-              placeholder="Weight"
-              type="number"
-              value={modalWeight}
-              onChange={(e) => setModalWeight(e.target.value)}
-              style={{ width: "100%", marginBottom: "0.5rem" }}
-            />
-
-            <button
-              onClick={handleAddExercise}
-              style={{
-                width: "100%",
-                padding: "0.5rem",
-                marginBottom: "0.5rem",
-                background: "green",
-                color: "#fff",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            >
-              Add to Routine
-            </button>
-
-            <button
-              onClick={() => setIsModalOpen(false)}
-              style={{
-                width: "100%",
-                padding: "0.5rem",
-                background: "#ccc",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
