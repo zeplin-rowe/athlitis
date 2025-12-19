@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ExerciseResultCard from "./ExerciseResultCard";
+import ExercisePreviewModal from "./ExercisePreviewModal";
 
-interface Exercise {
+export interface Exercise {
   id: string;
   name: string;
   bodyPart?: string;
@@ -30,6 +32,12 @@ export default function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
   const [results, setResults] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addedExercises, setAddedExercises] = useState<Exercise[]>([]);
+
+  const [hasSearched, setHasSearched] = useState(false);
+
+  // ✅ NEW: modal state
+  const [previewExercise, setPreviewExercise] = useState<Exercise | null>(null);
 
   const API_BASE = "/api";
 
@@ -55,6 +63,8 @@ export default function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
   const fetchExercises = async () => {
     setLoading(true);
     setError(null);
+    setHasSearched(true);
+
     try {
       const params = new URLSearchParams();
       if (name) params.append("search", name);
@@ -72,6 +82,7 @@ export default function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
     } catch (err) {
       console.error(err);
       setError("Failed to fetch exercises");
+      setResults([]);
     } finally {
       setLoading(false);
     }
@@ -137,30 +148,28 @@ export default function ExerciseSearch({ onSelect }: ExerciseSearchProps) {
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
 
-      {results.length === 0 && !loading && <p>No exercises found.</p>}
+      {!loading && hasSearched && results.length === 0 && (
+        <p>No exercises found.</p>
+      )}
 
-      <ul>
-        {results.map((exercise) => (
-          <li
-            key={exercise.id}
-            style={{
-              border: "1px solid #ccc",
-              padding: "0.5rem",
-              marginBottom: "0.5rem",
-              cursor: onSelect ? "pointer" : "default",
-            }}
-            onClick={() => onSelect && onSelect(exercise)}
-          >
-            <strong>{exercise.name}</strong> — {exercise.bodyPart} /{" "}
-            {exercise.equipment} / {exercise.targetMuscle}
-            {exercise.gifUrl && (
-              <div>
-                <img src={exercise.gifUrl} alt={exercise.name} width={100} />
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+      {/* ✅ RESULTS AS CARDS */}
+      {results.map((exercise) => (
+        <ExerciseResultCard
+          key={exercise.id}
+          exercise={exercise}
+          onPreview={() => setPreviewExercise(exercise)}
+          onSelect={() => {
+            setAddedExercises((prev) => [...prev, exercise]);
+            console.log("Added exercise:", exercise);
+          }}
+        />
+      ))}
+
+      {/* ✅ MODAL */}
+      <ExercisePreviewModal
+        exercise={previewExercise}
+        onClose={() => setPreviewExercise(null)}
+      />
     </div>
   );
 }
